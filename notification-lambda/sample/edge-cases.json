@@ -1,0 +1,81 @@
+[
+  null,
+  "not an object",
+  ["an", "array"],
+  { "name": "No type field", "email": "x@example.com" },
+  { "type": 42, "email": "x@example.com" },
+  {
+    "type": "  User_Registered ",
+    "name": "  Frank  ",
+    "email": "  Frank.Miller@EXAMPLE.COM ",
+    "roles": ["Admin", "admin", "  Editor"],
+    "joined": "April 5, 2021 13:45 EDT",
+    "event_id": 101
+  },
+  {
+    "type": "user_registered",
+    "name": "Grace",
+    "email": "grace@example.com",
+    "roles": "viewer",
+    "joined": "2021-02-30"
+  },
+  {
+    "type": "user_registered",
+    "name": "Heidi",
+    "email": "heidi@example.com",
+    "roles": ["viewer", 7],
+    "joined": "2021-03-01"
+  },
+  { "type": "user_registered", "name": "", "email": "ivan@example", "joined": "01/02/2021" },
+  { "type": "user_registered", "email": "judy@example.com", "joined": "2021-03-01" },
+  {
+    "type": "password_reset",
+    "email": "karl@example.com",
+    "requested": "July 15th, 2021 08:00 CEST"
+  },
+  { "type": "password_reset", "email": "liam@example.com", "requested": "2021-06-01 13:45 PM" },
+  { "type": "password_reset", "email": "mia@example.com" },
+  {
+    "type": "user_deleted",
+    "email": "nina@example.com",
+    "deleted": "2021-07-15T10:00:00.500+05:30"
+  },
+  { "type": "user_deleted", "email": "oscar@example.com", "deleted": 1626307200 },
+  {
+    "type": "user_deleted",
+    "email": "flaky@db-flaky.test",
+    "deleted": "2021-07-16",
+    "event_id": "retry-me"
+  },
+  {
+    "type": "user_deleted",
+    "email": "down@db-failure.test",
+    "deleted": "2021-07-17",
+    "event_id": "store-fails"
+  },
+  {
+    "type": "user_deleted",
+    "email": "down@db-failure.test",
+    "deleted": "2021-07-17",
+    "event_id": "store-fails"
+  },
+  {
+    "type": "user_registered",
+    "name": "Frank",
+    "email": "frank.miller@example.com",
+    "joined": "2021-04-05",
+    "event_id": "101"
+  },
+  {
+    "type": "user_deleted",
+    "email": "pat@example.com",
+    "deleted": "2021-08-01",
+    "unexpected_field": "is stripped"
+  },
+  {
+    "type": "user_deleted",
+    "email": "pat@example.com",
+    "deleted": "2021-08-01",
+    "unexpected_field": "is stripped"
+  }
+]

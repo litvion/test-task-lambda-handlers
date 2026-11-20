@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Email classifier / summarizer Lambda (Node.js + TypeScript)
+
+Parameters:
+  Provider:
+    Type: String
+    Default: mock
+    AllowedValues: [mock, anthropic]
+  AnthropicModel:
+    Type: String
+    Default: claude-haiku-5-5
+  AnthropicApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+
+Resources:
+  EmailClassifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Timeout: 120
+      Environment:
+        Variables:
+          PROVIDER: !Ref Provider
+          ANTHROPIC_MODEL: !Ref AnthropicModel
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          LOG_LEVEL: INFO
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: ['.js=.mjs']
+        Target: node22
+        Minify: true
+        Sourcemap: true
+        EntryPoints: ['src/handler.ts']
+
+Outputs:
+  FunctionName:
+    Value: !Ref EmailClassifierFunction

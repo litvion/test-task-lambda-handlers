@@ -1,0 +1,25 @@
+{
+  "mode": "classify",
+  "emails": [
+    {
+      "id": 1,
+      "subject": "Invoice #1234 overdue",
+      "body": "Dear customer, our records show that invoice #1234 for 2,450 EUR was due on 1 November and remains unpaid. Please arrange payment within 7 days to avoid a late fee. If you have already paid, kindly send us the remittance details."
+    },
+    {
+      "id": 2,
+      "subject": "Weekly engineering sync",
+      "body": "Agenda: review of last sprint, the database migration plan for Q1, and the API latency incident from Tuesday. Please add your topics to the doc before Thursday 10:00. The release checklist will be finalised at the end of the meeting."
+    },
+    {
+      "id": 3,
+      "subject": "Company retreat announcement",
+      "body": "We invite you to our annual company retreat in Bergen on 12-14 June! Colleagues from all offices will join for workshops, team-building activities and a celebration dinner. Our marketing team will share photos from the event on our social media channels, so please let HR know if you prefer not to appear."
+    },
+    {
+      "id": 4,
+      "subject": "",
+      "body": "   "
+    }
+  ]
+}

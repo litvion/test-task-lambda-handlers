@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "subject": "Invoice #1234 overdue",
+    "body": "Dear customer, our records show that invoice #1234 for 2,450 EUR was due on 1 November and remains unpaid. Please arrange payment within 7 days to avoid a late fee. If you have already paid, kindly send us the remittance details."
+  },
+  {
+    "id": 2,
+    "subject": "Weekly engineering sync",
+    "body": "Agenda: review of last sprint, the database migration plan for Q1, and the API latency incident from Tuesday. Please add your topics to the doc before Thursday 10:00. The release checklist will be finalised at the end of the meeting."
+  },
+  {
+    "id": 3,
+    "subject": "Company retreat announcement",
+    "body": "We invite you to our annual company retreat in Bergen on 12-14 June! Colleagues from all offices will join for workshops, team-building activities and a celebration dinner. Our marketing team will share photos from the event on our social media channels, so please let HR know if you prefer not to appear."
+  },
+  {
+    "id": 4,
+    "subject": "",
+    "body": "   "
+  },
+  {
+    "id": 5,
+    "subject": "Can't log in to my account",
+    "body": "Hello, since this morning I am unable to log in. I tried to reset my password twice but never received the reset email. Could you help me as soon as possible? Ticket number would be appreciated."
+  },
+  {
+    "id": 6,
+    "subject": "Updated NDA for review",
+    "body": "Hi Anna, please find attached the updated NDA. Our legal team changed the liability clause and added a GDPR data-processing section. Could you review the agreement and return it signed by Friday?"
+  },
+  {
+    "id": 7,
+    "subject": "Proposal and pricing for 50 licences",
+    "body": "Good afternoon, as discussed during the demo, here is our proposal for 50 licences with a 15% volume discount. The quote is valid until the end of the month. Let me know if you'd like to proceed with the purchase."
+  },
+  {
+    "id": 8,
+    "subject": "Q4 newsletter campaign",
+    "body": "Hi team, the Q4 newsletter campaign goes out next Tuesday. Please send me product launch highlights and customer quotes by Friday so we can finalise the copy and brand visuals."
+  },
+  {
+    "id": "msg-9",
+    "subject": "Welcome aboard!",
+    "body": "Hi Jonas, welcome to the team! Your onboarding starts Monday at 9:00 with an introduction to our benefits and vacation policy. Please bring an ID for payroll registration."
+  },
+  {
+    "id": 10,
+    "subject": "Lunch on Friday?",
+    "body": "Hey, are you free for lunch on Friday? There's a new ramen place near the office I'd love to try."
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "name": "email-classifier-lambda",
+  "version": "1.0.0",
+  "description": "AWS Lambda (Node.js + TypeScript) that classifies short emails into topics or summarizes them in 1-2 sentences, behind a swappable model provider.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/src/handler.js",
+  "scripts": {
+    "prepare": "npm run build",
+    "clean": "node -e \"for (const dir of ['dist', 'build']) require('fs').rmSync(dir, { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "classify": "node app/run.js --input sample/emails.json --mode classify --log-level INFO",
+    "summarize": "node app/run.js --input sample/emails.json --mode summarize --log-level INFO",
+    "bundle": "esbuild src/handler.ts --bundle --platform=node --target=node22 --format=esm --minify --sourcemap --outfile=build/lambda/index.mjs"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
+    "@aws-lambda-powertools/logger": "^2.36.0",
+    "lru-cache": "^11.5.3",
+    "zod": "^4.6.7"
+  }
+}
