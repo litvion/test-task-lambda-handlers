@@ -2,13 +2,27 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ProviderName } from '../enums/provider-name.enum.js';
 import { ProviderError } from '../errors.js';
 import { ErrorHelper } from '../helpers/error.helper.js';
-import type { CompletionRequest, CompletionResponse, LlmAdapter } from './llm.adapter.js';
+import type {
+  CompletionRequest,
+  CompletionResponse,
+  LlmAdapter,
+  TokenUsage,
+} from './llm.adapter.js';
 
 // Haiku 5.5 thinks adaptively and thinking tokens count toward max_tokens,
 // so leave room on top of the answer budget.
 const THINKING_HEADROOM_TOKENS = 2048;
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
+const TOKENS_PER_MILLION = 1_000_000;
+
+// USD per million tokens, Anthropic API list prices (Haiku: prompts up to 100K tokens, which a
+// batch of 10 truncated emails never reaches). Update when prices change or a model is added.
+const PRICES_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
+  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
+  'claude-sonnet-5-5': { input: 2, output: 10 },
+  'claude-opus-5-5': { input: 4, output: 20 },
+};
 
 export interface MessagesApi {
   create(
@@ -57,24 +71,39 @@ export class AnthropicAdapter implements LlmAdapter {
       throw this.toProviderError(err);
     }
 
+    const usage = {
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens,
+    };
+
+    // These replies are billed like any other, so their usage travels with the error.
     if (message.stop_reason === 'refusal') {
       const category = message.stop_details?.category ?? 'unspecified';
 
-      throw new ProviderError(`model declined the request (category: ${category})`);
+      throw new ProviderError(`model declined the request (category: ${category})`, { usage });
     }
 
     if (message.stop_reason === 'max_tokens') {
-      throw new ProviderError('reply cut off at max_tokens');
+      throw new ProviderError('reply cut off at max_tokens', { usage });
     }
 
     const text = message.content.map((block) => (block.type === 'text' ? block.text : '')).join('');
 
-    if (!text) throw new ProviderError(`empty reply (stop_reason: ${message.stop_reason})`);
+    if (!text) {
+      throw new ProviderError(`empty reply (stop_reason: ${message.stop_reason})`, { usage });
+    }
 
-    return {
-      text,
-      usage: { inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens },
-    };
+    return { text, usage };
+  }
+
+  estimateCostUsd(usage: TokenUsage): number | undefined {
+    const price = PRICES_USD_PER_MTOK[this.model];
+
+    if (!price) return undefined;
+
+    return (
+      (usage.inputTokens * price.input + usage.outputTokens * price.output) / TOKENS_PER_MILLION
+    );
   }
 
   private toProviderError(err: unknown): ProviderError {

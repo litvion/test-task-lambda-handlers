@@ -8,7 +8,7 @@ import { BatchPromptHelper } from './helpers/batch-prompt.helper.js';
 import { ConcurrencyHelper } from './helpers/concurrency.helper.js';
 import { ErrorHelper } from './helpers/error.helper.js';
 import { TextHelper } from './helpers/text.helper.js';
-import type { LlmAdapter } from './llm/llm.adapter.js';
+import type { LlmAdapter, TokenUsage } from './llm/llm.adapter.js';
 import { createMode } from './modes/mode.factory.js';
 import type { Mode } from './modes/mode.interface.js';
 import {
@@ -24,6 +24,7 @@ const MAX_SUBJECT_CHARS = 200;
 const DEADLINE_SAFETY_MS = 3_000;
 // A model call usually takes 1-3 s; with less time left it would only be aborted.
 const MIN_CALL_TIME_MS = 2_000;
+const COST_DECIMALS = 6;
 
 export interface ItemResult {
   id: EmailId | null;
@@ -42,6 +43,8 @@ export interface RunStats {
   retriedItems: number;
   inputTokens: number;
   outputTokens: number;
+  // null when the adapter has no price for its model.
+  estimatedCostUsd: number | null;
   durationMs: number;
 }
 
@@ -126,6 +129,7 @@ export class EmailProcessor {
       (batch) => this.runBatch(batch, run),
     );
 
+    run.stats.estimatedCostUsd = this.estimateCost(run.stats);
     run.stats.durationMs = Date.now() - startedAt;
     this.logger.info('Processing finished', { mode: modeName, ...run.stats });
 
@@ -246,11 +250,13 @@ export class EmailProcessor {
         signal: Number.isFinite(timeLeftMs) ? AbortSignal.timeout(timeLeftMs) : undefined,
       });
 
-      run.stats.inputTokens += usage.inputTokens;
-      run.stats.outputTokens += usage.outputTokens;
+      this.addUsage(run, usage);
 
       return run.mode.parseReply(text, batch.length);
     } catch (err) {
+      // Refused or cut-off replies are billed too; aborted and network-failed calls report nothing.
+      if (err instanceof ProviderError && err.usage) this.addUsage(run, err.usage);
+
       // A bad key or unknown model would fail every call, so stop calling the model.
       if (err instanceof ProviderError && err.fatal) {
         if (!run.providerDown) {
@@ -277,6 +283,17 @@ export class EmailProcessor {
 
       return new Map();
     }
+  }
+
+  private addUsage(run: Run, usage: TokenUsage): void {
+    run.stats.inputTokens += usage.inputTokens;
+    run.stats.outputTokens += usage.outputTokens;
+  }
+
+  private estimateCost(usage: TokenUsage): number | null {
+    const cost = this.llmAdapter.estimateCostUsd(usage);
+
+    return cost === undefined ? null : Number(cost.toFixed(COST_DECIMALS));
   }
 
   private isOutOfTime(run: Run): boolean {
@@ -336,6 +353,7 @@ export class EmailProcessor {
       retriedItems: 0,
       inputTokens: 0,
       outputTokens: 0,
+      estimatedCostUsd: null,
       durationMs: 0,
     };
   }

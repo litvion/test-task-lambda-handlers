@@ -122,7 +122,9 @@ With the schema, Haiku sometimes stops a summarize batch early, and the schema c
 
 ### Adding a model provider
 
-1. Implement `LlmAdapter` (`src/llm/llm.adapter.ts`): one `complete({ task, system, prompt, maxTokens })` method returning text and token usage, throwing `ProviderError` on failure (`fatal: true` when no call can succeed, `transient: true` when the service itself failed).
+1. Implement `LlmAdapter` (`src/llm/llm.adapter.ts`):
+   - `complete({ task, system, prompt, maxTokens })` returns text and token usage, and throws `ProviderError` on failure (`fatal: true` when no call can succeed, `transient: true` when the service itself failed, `usage` when an unusable reply was still billed);
+   - `estimateCostUsd(usage)` returns the cost of that usage, or `undefined` when the price is unknown.
 2. Add a `ProviderName` value and a case in `src/llm/llm-adapter.factory.ts`.
 
 A local model (for example via `node-llama-cpp`) or another API fits the same interface. Modes and the processor don't change.
@@ -136,7 +138,42 @@ A local model (for example via `node-llama-cpp`) or another API fits the same in
 - Output is capped: `max_tokens` is sized per batch (20 tokens per email for classify, 60 for summarize) plus a fixed allowance for the model's reasoning.
 - The cheapest current model, Claude Haiku 5.5, at `low` effort. A harder dataset can switch to `claude-sonnet-5-5` with `ANTHROPIC_MODEL` alone.
 - Retries happen only for the emails that failed, never fan out during an API outage, and stop entirely on configuration errors.
-- Every run logs `modelCalls`, `inputTokens`, `outputTokens`, `cacheHits` and `deduplicated`, so cost is visible per invocation.
+
+## Tracking cost
+
+Every invocation ends with one `Processing finished` INFO log line showing what the run spent and what it saved (a real summarize run of the sample):
+
+```json
+{
+  "message": "Processing finished",
+  "mode": "summarize",
+  "total": 10,
+  "succeeded": 9,
+  "rejected": 1,
+  "failed": 0,
+  "cacheHits": 0,
+  "deduplicated": 0,
+  "modelCalls": 1,
+  "retriedItems": 0,
+  "inputTokens": 971,
+  "outputTokens": 528,
+  "estimatedCostUsd": 0.000361,
+  "durationMs": 2490
+}
+```
+
+- `inputTokens` and `outputTokens` add up the `usage` of every reply. That includes refused, cut-off and empty replies: they are billed even though their emails are retried. Output tokens include Haiku's thinking, which is billed as output.
+- `estimatedCostUsd` multiplies those totals by the list prices in `src/llm/anthropic.adapter.impl.ts`. It is `null` for a model missing from that table and `0` for the mock provider. The Anthropic Console's usage page is the real record.
+- `cacheHits` and `deduplicated` count emails answered without a model call. `retriedItems` counts emails that needed extra calls.
+- Not counted: calls aborted at the Lambda deadline and calls that failed on the network, because the API returns no usage for them.
+
+The logs are JSON, so CloudWatch Logs Insights can total the spend per day:
+
+```
+filter message = "Processing finished"
+| stats sum(modelCalls) as calls, sum(inputTokens) as input, sum(outputTokens) as output,
+        sum(estimatedCostUsd) as usd by bin(1d)
+```
 
 ## Configuration
 
@@ -166,6 +203,8 @@ Or run `npm run bundle` and upload `build/lambda/index.mjs` (handler `index.hand
 ## What I'd add for production
 
 - Read the API key from AWS Secrets Manager at cold start instead of a (`NoEcho`) environment variable.
+- Give this Lambda its own API key, so the Anthropic Console shows its usage separately from other services, and set a spend limit on the workspace as a hard cap.
+- Add a CloudWatch metric filter on `estimatedCostUsd` with an alarm on unusual daily spend.
 - Use the Message Batches API (50% cheaper) for large jobs that don't need an answer within the invocation.
 - Use prompt caching once the system prompt grows (for example with few-shot examples). The current prompts are below the minimum cacheable length, so it would have no effect today.
 - Move the result cache to DynamoDB or Redis so it is shared between containers.

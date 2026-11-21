@@ -55,6 +55,11 @@ export class MockAdapter implements LlmAdapter {
     };
   }
 
+  // Runs locally, so it costs nothing; its token counts are estimates.
+  estimateCostUsd(): number {
+    return 0;
+  }
+
   private classify(email: WireEmail): string[] {
     const text = `${email.s} ${email.b}`;
 

@@ -100,11 +100,26 @@ describe('AnthropicAdapter', () => {
     for (const [overrides, expected] of cases) {
       const { messagesApi } = fakeApi(() => message(overrides));
 
-      await assert.rejects(
-        adapter(messagesApi).complete(request),
-        (err) => err instanceof ProviderError && !err.fatal && expected.test(err.message),
-      );
+      await assert.rejects(adapter(messagesApi).complete(request), (err) => {
+        assert.ok(err instanceof ProviderError);
+        assert.ok(!err.fatal && expected.test(err.message));
+        // Billed even though unusable, so the usage must reach the run stats.
+        assert.deepEqual(err.usage, { inputTokens: 100, outputTokens: 40 });
+
+        return true;
+      });
     }
+  });
+
+  it('estimates the cost from the model list price', () => {
+    const { messagesApi } = fakeApi();
+    const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
+
+    assert.equal(adapter(messagesApi).estimateCostUsd(usage), 0.6);
+    assert.equal(
+      new AnthropicAdapter({ model: 'claude-unknown', messagesApi }).estimateCostUsd(usage),
+      undefined,
+    );
   });
 
   const errorCases: [string, Error, { fatal: boolean; transient: boolean }][] = [

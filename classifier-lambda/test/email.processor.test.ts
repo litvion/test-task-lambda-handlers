@@ -6,7 +6,12 @@ import { EmailProcessor, type ProcessOptions } from '../src/email.processor.js';
 import { ItemErrorCode } from '../src/enums/item-error-code.enum.js';
 import { ProviderName } from '../src/enums/provider-name.enum.js';
 import { InputError, ProviderError } from '../src/errors.js';
-import type { CompletionRequest, CompletionResponse, LlmAdapter } from '../src/llm/llm.adapter.js';
+import type {
+  CompletionRequest,
+  CompletionResponse,
+  LlmAdapter,
+  TokenUsage,
+} from '../src/llm/llm.adapter.js';
 import { MockAdapter } from '../src/llm/mock.adapter.impl.js';
 import { createLogger } from '../src/logger.js';
 import { BatchPromptHelper } from '../src/helpers/batch-prompt.helper.js';
@@ -32,6 +37,11 @@ class FakeAdapter implements LlmAdapter {
     if (reply instanceof Error) throw reply;
 
     return { text: reply, usage: { inputTokens: 10, outputTokens: 5 } };
+  }
+
+  // $1 per 1,000 input tokens and $2 per 1,000 output tokens keeps the expected costs readable.
+  estimateCostUsd(usage: TokenUsage): number | undefined {
+    return (usage.inputTokens + usage.outputTokens * 2) / 1000;
   }
 
   emailsSent(call: number): number {
@@ -225,6 +235,37 @@ describe('EmailProcessor', () => {
     assert.deepEqual(results, [{ id: 1, error: ItemErrorCode.ProcessingFailed }]);
   });
 
+  it('reports the estimated cost of the run from its token usage', async () => {
+    const { stats } = await setup()(emails(4));
+
+    assert.deepEqual([stats.inputTokens, stats.outputTokens], [20, 10]);
+    assert.equal(stats.estimatedCostUsd, 0.04);
+  });
+
+  it('reports the cost as null when the model has no known price', async () => {
+    const llmAdapter = new FakeAdapter();
+
+    llmAdapter.estimateCostUsd = () => undefined;
+    const { stats } = await setup(llmAdapter)(emails(1));
+
+    assert.equal(stats.estimatedCostUsd, null);
+  });
+
+  it('counts the tokens of billed replies that could not be used', async () => {
+    const llmAdapter = new FakeAdapter(
+      () =>
+        new ProviderError('reply cut off at max_tokens', {
+          usage: { inputTokens: 7, outputTokens: 3 },
+        }),
+    );
+    const { stats } = await setup(llmAdapter)(emails(2));
+
+    // One batch call plus one retry per email, each billed.
+    assert.equal(llmAdapter.calls.length, 3);
+    assert.deepEqual([stats.inputTokens, stats.outputTokens, stats.failed], [21, 9, 2]);
+    assert.equal(stats.estimatedCostUsd, 0.039);
+  });
+
   it('stops calling the model after a fatal provider error', async () => {
     const llmAdapter = new FakeAdapter(
       () => new ProviderError('invalid x-api-key', { fatal: true }),
@@ -241,6 +282,7 @@ describe('EmailProcessor', () => {
     let maxInFlight = 0;
     const llmAdapter: LlmAdapter = {
       name: 'slow',
+      estimateCostUsd: () => undefined,
       async complete(request) {
         maxInFlight = Math.max(maxInFlight, ++inFlight);
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -259,6 +301,7 @@ describe('EmailProcessor', () => {
     let maxInFlight = 0;
     const llmAdapter: LlmAdapter = {
       name: 'slow',
+      estimateCostUsd: () => undefined,
       async complete(request) {
         maxInFlight = Math.max(maxInFlight, ++inFlight);
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -300,6 +343,7 @@ describe('EmailProcessor', () => {
     const signals: (AbortSignal | undefined)[] = [];
     const llmAdapter: LlmAdapter = {
       name: 'hanging',
+      estimateCostUsd: () => undefined,
       complete: (request) =>
         new Promise((_, reject) => {
           signals.push(request.signal);
