@@ -26,7 +26,9 @@ To use Claude, create a `.env` (gitignored) from the example and set the key:
 cp .env.example .env           # then set PROVIDER=anthropic and ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Results are printed to stdout and JSON logs go to stderr, so `node app/run.js -i sample/emails.json -m classify > results.json` gives you just the results.
+Results are printed to stdout and logs go to stderr, so `node app/run.js -i sample/emails.json -m classify > results.json` gives you just the results.
+
+In a terminal, logs are short coloured lines (`00:14:04.843 INFO  Processing finished total=10 ...`). When stderr is piped or redirected they are JSON lines, the format Lambda always uses. `--log-format json|pretty` overrides the choice.
 
 Other useful commands:
 

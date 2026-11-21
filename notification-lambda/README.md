@@ -11,7 +11,9 @@ npm install                     # installs dependencies and compiles TypeScript 
 node app/run.js --input sample/events.json --log-level INFO
 ```
 
-The processing report is printed to stdout and JSON logs go to stderr, so `node app/run.js -i sample/events.json > report.json` gives you just the report.
+The processing report is printed to stdout and logs go to stderr, so `node app/run.js -i sample/events.json > report.json` gives you just the report.
+
+In a terminal, logs are short coloured lines (`00:21:32.767 INFO  Processing finished total=7 inserted=4 ...`). When stderr is piped or redirected they are JSON lines, the format Lambda always uses. `--log-format json|pretty` overrides the choice.
 
 Other useful commands:
 
@@ -124,7 +126,7 @@ This works within one invocation. To make it hold across invocations, persist th
 
 ## Errors, retries and logging
 
-- Logs are JSON lines (AWS Powertools Logger) with a `requestId`. Skipped events are logged at `WARN` with their index, type, `event_id`, error code and the names of the invalid fields; storage failures at `ERROR`. Submitted values (emails, names) never reach the logs; the full reasons are only in the report returned to the caller.
+- On Lambda, logs are JSON lines (AWS Powertools Logger) with a `requestId`. Skipped events are logged at `WARN` with their index, type, `event_id`, error code and the names of the invalid fields; storage failures at `ERROR`. Submitted values (emails, names) never reach the logs; the full reasons are only in the report returned to the caller.
 - Transient `StorageError`s (lock timeout, lost connection) are retried twice, after 25-50 ms and then 50-100 ms (random jitter), so concurrent Lambdas don't retry against the database in lockstep. Other errors fail the event immediately.
 - A retry after a lost connection can, in rare cases, repeat an insert that had already committed. With real MySQL, the unique `event_id` key from the note in `schema.sql` (`INSERT ... ON DUPLICATE KEY UPDATE`) makes the retry harmless.
 - The handler stops 2 s before the Lambda timeout. Events it didn't reach are reported as `failed` / `deadline_exceeded` with every earlier result intact, instead of the invocation being killed with no report after some rows were already written.

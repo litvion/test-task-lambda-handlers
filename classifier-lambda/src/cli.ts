@@ -9,7 +9,7 @@ import { ProviderName } from './enums/provider-name.enum.js';
 import { InputError } from './errors.js';
 import { ErrorHelper } from './helpers/error.helper.js';
 import { createLlmAdapter } from './llm/llm-adapter.factory.js';
-import { createLogger, LOG_LEVELS } from './logger.js';
+import { createLogger, LOG_FORMATS, LOG_LEVELS, logFormatSchema } from './logger.js';
 
 const EXIT_OK = 0;
 const EXIT_FAILED = 1;
@@ -20,6 +20,7 @@ const USAGE = `Usage: node app/run.js --input <emails.json> --mode <mode> [optio
   -i, --input <path>      JSON file with an array of { id, subject, body } (required)
   -m, --mode <mode>       ${Object.values(ModeName).join(' | ')} (required)
   -l, --log-level <lvl>   ${LOG_LEVELS.join(' | ')} (default: LOG_LEVEL or INFO)
+      --log-format <fmt>  ${LOG_FORMATS.join(' | ')} (default: pretty in a terminal, else json)
   -h, --help              show this help
 
 Settings (PROVIDER, ANTHROPIC_API_KEY, ...) come from the environment or a .env file.`;
@@ -34,6 +35,7 @@ export async function runCli(argv: string[]): Promise<number> {
         input: { type: 'string', short: 'i' },
         mode: { type: 'string', short: 'm' },
         'log-level': { type: 'string', short: 'l' },
+        'log-format': { type: 'string' },
         help: { type: 'boolean', short: 'h' },
       },
     }));
@@ -55,6 +57,17 @@ export async function runCli(argv: string[]): Promise<number> {
     return EXIT_BAD_USAGE;
   }
 
+  // Readable lines in a terminal; JSON when stderr is piped or redirected, so it stays parseable.
+  const logFormat = logFormatSchema.safeParse(
+    values['log-format'] ?? (process.stderr.isTTY ? 'pretty' : 'json'),
+  );
+
+  if (!logFormat.success) {
+    console.error(`--log-format must be one of: ${LOG_FORMATS.join(', ')}\n\n${USAGE}`);
+
+    return EXIT_BAD_USAGE;
+  }
+
   // Variables already set in the shell win over .env.
   if (existsSync('.env')) process.loadEnvFile('.env');
 
@@ -70,7 +83,7 @@ export async function runCli(argv: string[]): Promise<number> {
     return EXIT_BAD_USAGE;
   }
 
-  const logger = createLogger(config.logLevel);
+  const logger = createLogger(config.logLevel, logFormat.data);
   const processor = new EmailProcessor({ llmAdapter: createLlmAdapter(config), config, logger });
 
   logger.appendKeys({ requestId: `local-${randomUUID()}` });

@@ -6,7 +6,7 @@ import { SimulatedMySqlRepository } from './db/simulated-mysql.repository.impl.j
 import { InputError } from './errors.js';
 import { ErrorHelper } from './helpers/error.helper.js';
 import { EventRegistry } from './events/event-registry.js';
-import { createLogger, LOG_LEVELS } from './logger.js';
+import { createLogger, LOG_FORMATS, LOG_LEVELS, logFormatSchema } from './logger.js';
 import { NotificationProcessor } from './notification.processor.js';
 
 const EXIT_OK = 0;
@@ -17,6 +17,7 @@ const USAGE = `Usage: node app/run.js --input <events.json> [options]
 
   -i, --input <path>      JSON file with an array of events (required)
   -l, --log-level <lvl>   ${LOG_LEVELS.join(' | ')} (default: LOG_LEVEL or INFO)
+      --log-format <fmt>  ${LOG_FORMATS.join(' | ')} (default: pretty in a terminal, else json)
       --show-db           also print the simulated Notification table
   -h, --help              show this help`;
 
@@ -29,6 +30,7 @@ export async function runCli(argv: string[]): Promise<number> {
       options: {
         input: { type: 'string', short: 'i' },
         'log-level': { type: 'string', short: 'l' },
+        'log-format': { type: 'string' },
         'show-db': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
       },
@@ -51,6 +53,17 @@ export async function runCli(argv: string[]): Promise<number> {
     return EXIT_BAD_USAGE;
   }
 
+  // Readable lines in a terminal; JSON when stderr is piped or redirected, so it stays parseable.
+  const logFormat = logFormatSchema.safeParse(
+    values['log-format'] ?? (process.stderr.isTTY ? 'pretty' : 'json'),
+  );
+
+  if (!logFormat.success) {
+    console.error(`--log-format must be one of: ${LOG_FORMATS.join(', ')}\n\n${USAGE}`);
+
+    return EXIT_BAD_USAGE;
+  }
+
   let config;
 
   try {
@@ -63,7 +76,7 @@ export async function runCli(argv: string[]): Promise<number> {
     return EXIT_BAD_USAGE;
   }
 
-  const logger = createLogger(config.logLevel);
+  const logger = createLogger(config.logLevel, logFormat.data);
   const repository = new SimulatedMySqlRepository(logger, config.dbLatencyMs);
   const processor = new NotificationProcessor({
     eventRegistry: new EventRegistry(),
